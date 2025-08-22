@@ -1,0 +1,31 @@
+configuration:
+  tv:
+    name: IP Adress of the Samsung The Frame
+    description: Please make sure the IP adress of the Frame is static
+  photo_filter:
+    name: Photo filter to apply
+    description: None will not apply any filter
+  matte:
+    name: Matte to apply
+    description: None will not apply any matte
+  matte_color:
+    name: Color of the matte
+    description: If you set the value of Matte to none, the selected color will be disregarded.
+  ai_art_enabled:
+    name: Enable AI Art mode
+    description: If enabled, the add-on will request an AI-generated image using your prompt.
+  ai_art_prompt:
+    name: AI Art prompt
+    description: The prompt used to generate the AI artwork.
+  api_key:
+    name: API Key
+    description: API key for the AI image generation service.
+  rotation_interval:
+    name: Rotation interval (minutes)
+    description: Time between image changes.
+  ensure_art_mode_only:
+    name: Only ensure Art Mode (no upload)
+    description: When enabled, the add-on will only switch the TV to Art Mode.
+  debug:
+    name: Debug logging
+    description: Enable verbose logging for troubleshooting.

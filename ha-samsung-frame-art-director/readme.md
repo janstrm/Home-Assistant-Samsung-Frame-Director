@@ -1,8 +1,8 @@
-# Samsung Frame Art Add on for Home Assistant
+# Home Assistant Samsung Frame Art Director (Add-on)
 
 ![TV with some art on it ](https://i.imgur.com/BunHdwb.jpeg)
 
-This add-on lets you place images in "Media" and it will rotate the image on your Samsung The Frame.
+This add-on manages Art Mode on Samsung The Frame. It is built specifically for Art Mode artworks and rotates images placed in your Home Assistant Media folder.
 
 By starting the add-on it will randomly pick a image from te folder and put it on your frame; after the image is placed the add-on will automatically stop again. This for instance can be triggered via an automation to it on a daily basis. Please find an example below.
 
@@ -27,5 +27,5 @@ condition: []
 action:
   - service: hassio.addon_start
     data:
-      addon: local_hass-frame-changer
+      addon: local_ha-samsung-frame-art-director
 ```

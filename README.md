@@ -1,11 +1,12 @@
-# Samsung Frame Art Mode (Home Assistant Add-on)
+# Home Assistant Samsung Frame Art Director (Add-on)
 
 [![Open your Home Assistant instance and show the add add-on repository dialog with a specific repository URL pre-filled.](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fjanstrm%2FHome-Assistant-Samsung-Frame-Director)
 
-A focused, single‑TV Home Assistant add-on to dynamically manage artwork on a Samsung The Frame TV. The add-on runs as a long‑lived service and rotates images on a schedule from your HA Media folder, with a simple path to add AI‑generated images next.
+A focused, single‑TV Home Assistant add‑on to manage Art Mode on Samsung The Frame. Built specifically for Art Mode artworks (correct sizing/cropping, optional matte and photo filters), it runs as a long‑lived service and rotates images from your HA Media folder, with a simple path to add AI‑generated images next.
 
 ## What this is
-- Persistent service (runs in the background) that updates The Frame’s art.
+- Persistent service (runs in the background) to manage The Frame’s Art Mode.
+- Built for Art Mode artworks: proper sizing/cropping, optional matte and filters.
 - Sources images from `Media/frame/` (local). AI generation is planned.
 - Manual override via `hassio.addon_stdin` to display a specific image on demand.
 - Single‑TV scope by design; clear, minimal controls.
@@ -20,7 +21,7 @@ A focused, single‑TV Home Assistant add-on to dynamically manage artwork on a 
 ## Install
 1. In Home Assistant → Settings → Add-ons → Add-on Store → “Repositories”, add:
    `https://github.com/janstrm/Home-Assistant-Samsung-Frame-Director`
-2. Install the “Samsung Frame Art Mode” add-on, open it, and configure options.
+2. Install the “Samsung Frame Art Director” add-on, open it, and configure options.
 
 ## Configuration
 - `tv` (string): IP address of your Samsung The Frame (use a static IP).
@@ -44,7 +45,8 @@ Call `hassio.addon_stdin` from Developer Tools → Services with a JSON payload:
 ```yaml
 service: hassio.addon_stdin
 data:
-  addon: local_hass-frame-changer
+  # If you installed from a local repo, the slug is prefixed with `local_`.
+  addon: local_ha-samsung-frame-art-director
   input: '{"action":"load_image","filename":"/media/frame/IMAGE.JPG"}'
 ```
 

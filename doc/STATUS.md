@@ -1,4 +1,4 @@
-## **Home Assistant Samsung Frame Art \- Development Status**
+## **Home Assistant Samsung Frame Art Director - Development Status**
 
 ### **Purpose**
 
@@ -87,11 +87,11 @@ To verify that the add-on functions correctly as a persistent service, rotates i
 * \[ \] **Test Case 5: Rotation Test**: After `rotation_interval` minutes, the add-on selects a new image and updates the TV.  
 * \[ \] **Test Case 6: Manual Override via stdin**:  
   1. From Developer Tools → Services, call `hassio.addon_stdin`.  
-  2. Use your add-on slug (e.g., `local_hass-frame-changer`) and provide a JSON payload like:  
+  2. Use your add-on slug (e.g., `local_ha-samsung-frame-art-director`) and provide a JSON payload like:  
      ```yaml
      service: hassio.addon_stdin
      data:
-       addon: local_hass-frame-changer
+       addon: local_ha-samsung-frame-art-director
        input: '{"action":"load_image","filename":"/media/frame/IMAGE.JPG"}'
      ```  
   3. Verify the requested image is immediately processed and shown on the TV.  

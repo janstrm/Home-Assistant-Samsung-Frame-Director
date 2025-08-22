@@ -1,8 +1,8 @@
-name: "Home Assistant Samsung the Frame changer"
+name: "Home Assistant Samsung Frame Art Director"
 description: "This addon allows you to change your Samsung Frame's art based on a folder of images on your computer. The script picks an image from folder on your computer, then sends it to your TV and sets it as the active image automatically—it also does its best to try not repeatedly upload the same photo to your TV."
 version: "2.4"
 url: "https://github.com/janstrm/Home-Assistant-Samsung-Frame-Director"
-slug: "hass-frame-changer"
+slug: "ha-samsung-frame-art-director"
 init: false
 startup: services
 boot: manual
@@ -38,4 +38,4 @@ schema:
   ensure_art_mode_only: "bool"
   debug: "bool"
 # For local builds, you can omit 'image' to build in Supervisor. Uncomment and set if publishing images.
-# image: ghcr.io/janstrm/{arch}-addon-homeassistant-samsung-frame-director
+# image: ghcr.io/janstrm/{arch}-addon-homeassistant-samsung-frame-art-director

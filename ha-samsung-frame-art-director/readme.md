@@ -31,3 +31,17 @@ action:
     data:
       addon: local_ha-samsung-frame-art-director
 ```
+
+## Credits
+- Inspiration:
+  - vivalatech/homeassistant-addons — add-on approach for pushing images to The Frame.
+    - https://github.com/vivalatech/homeassistant-addons
+  - gijsvdhoven/homeassistant-addons — earlier add-on and structure inspiration.
+    - https://github.com/gijsvdhoven/homeassistant-addons
+- Runtime/build dependencies we use:
+  - NickWaterton/samsung-tv-ws-api — Async Art Mode control and TV WebSocket API.
+    - https://github.com/NickWaterton/samsung-tv-ws-api
+  - Home Assistant Builder — base images/build flow for add-ons.
+    - https://github.com/home-assistant/builder
+  - Bashio — shell helpers for add-ons.
+    - https://github.com/hassio-addons/bashio

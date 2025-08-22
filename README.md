@@ -61,3 +61,17 @@ Tip: Add a Lovelace button to trigger the same payload for quick, on‑demand co
 ## Notes
 - Place `.jpg`/`.png` images (lowercase extensions recommended) in `Media/frame/`.
 - This add-on targets a single Samsung The Frame TV.
+
+## Credits
+- Inspiration:
+  - vivalatech/homeassistant-addons — add-on approach for pushing images to The Frame.
+    - https://github.com/vivalatech/homeassistant-addons
+  - gijsvdhoven/homeassistant-addons — earlier add-on and structure inspiration.
+    - https://github.com/gijsvdhoven/homeassistant-addons
+- Runtime/build dependencies we use:
+  - NickWaterton/samsung-tv-ws-api — Async Art Mode control and TV WebSocket API (`SamsungTVAsyncArt`).
+    - https://github.com/NickWaterton/samsung-tv-ws-api
+  - Home Assistant Builder — base images and build flow used by add-ons.
+    - https://github.com/home-assistant/builder
+  - Bashio — shell helpers for add-ons (used in `run.sh`).
+    - https://github.com/hassio-addons/bashio

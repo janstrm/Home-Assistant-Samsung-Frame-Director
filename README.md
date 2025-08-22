@@ -1,6 +1,6 @@
 # Samsung Frame Art Mode (Home Assistant Add-on)
 
-[![Open your Home Assistant instance and show the add add-on repository dialog with a specific repository URL pre-filled.](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fjanstrm%2Fhomeassistant-samsungframe-artmode)
+[![Open your Home Assistant instance and show the add add-on repository dialog with a specific repository URL pre-filled.](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fjanstrm%2FHome-Assistant-Samsung-Frame-Director)
 
 A focused, single‑TV Home Assistant add-on to dynamically manage artwork on a Samsung The Frame TV. The add-on runs as a long‑lived service and rotates images on a schedule from your HA Media folder, with a simple path to add AI‑generated images next.
 
@@ -19,7 +19,7 @@ A focused, single‑TV Home Assistant add-on to dynamically manage artwork on a 
 
 ## Install
 1. In Home Assistant → Settings → Add-ons → Add-on Store → “Repositories”, add:
-   `https://github.com/janstrm/homeassistant-samsungframe-artmode`
+   `https://github.com/janstrm/Home-Assistant-Samsung-Frame-Director`
 2. Install the “Samsung Frame Art Mode” add-on, open it, and configure options.
 
 ## Configuration

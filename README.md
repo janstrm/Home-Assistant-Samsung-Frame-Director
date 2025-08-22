@@ -1,5 +1,7 @@
 # Home Assistant Samsung Frame Art Director (Add-on)
 
+> NOTE: STILL IN DEVELOPMENT – APIs, options, and behavior may change.
+
 [![Open your Home Assistant instance and show the add add-on repository dialog with a specific repository URL pre-filled.](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fjanstrm%2FHome-Assistant-Samsung-Frame-Director)
 
 A focused, single‑TV Home Assistant add‑on to manage Art Mode on Samsung The Frame. Built specifically for Art Mode artworks (correct sizing/cropping, optional matte and photo filters), it runs as a long‑lived service and rotates images from your HA Media folder, with a simple path to add AI‑generated images next.

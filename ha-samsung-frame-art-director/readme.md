@@ -1,5 +1,7 @@
 # Home Assistant Samsung Frame Art Director (Add-on)
 
+> NOTE: STILL IN DEVELOPMENT – APIs, options, and behavior may change.
+
 ![TV with some art on it ](https://i.imgur.com/BunHdwb.jpeg)
 
 This add-on manages Art Mode on Samsung The Frame. It is built specifically for Art Mode artworks and rotates images placed in your Home Assistant Media folder.

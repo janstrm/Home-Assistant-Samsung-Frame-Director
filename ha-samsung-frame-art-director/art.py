@@ -47,6 +47,23 @@ def save_uploaded_history(history: List[str]):
     except IOError:
         logging.error("Could not write to uploaded.json.")
 
+# --- Stdin Listener ---
+async def stdin_listener(queue: asyncio.Queue):
+    loop = asyncio.get_event_loop()
+    reader = asyncio.StreamReader()
+    protocol = asyncio.StreamReaderProtocol(reader)
+    await loop.connect_read_pipe(lambda: protocol, sys.stdin)
+    while True:
+        line = await reader.readline()
+        if not line:
+            await asyncio.sleep(0.1)
+            continue
+        try:
+            message = json.loads(line.decode().strip())
+            await queue.put(message)
+        except Exception:
+            logging.warning('Received invalid JSON on stdin')
+
 # --- Main Logic ---
 async def main():
     args = parseargs()
@@ -56,10 +73,26 @@ async def main():
     logging.info(f"Add-on started. Rotating every {args.rotation_interval} minutes.")
     interval_seconds = max(60, args.rotation_interval * 60)
 
+    command_queue: asyncio.Queue = asyncio.Queue()
+    listener_task = asyncio.create_task(stdin_listener(command_queue))
+    pending_cmds: List[dict] = []
+
     while True:
         logging.info("--- Starting new rotation cycle ---")
         tv = None
         try:
+            # Collect any pending commands to process this cycle
+            commands_to_handle: List[dict] = []
+            if pending_cmds:
+                commands_to_handle.extend(pending_cmds)
+                pending_cmds.clear()
+            try:
+                while True:
+                    cmd = command_queue.get_nowait()
+                    commands_to_handle.append(cmd)
+            except asyncio.QueueEmpty:
+                pass
+
             # 1. Create the TV object.
             tv = SamsungTVAsyncArt(
                 host=args.ip,
@@ -102,6 +135,53 @@ async def main():
                     # Fallback to power toggle if direct Art Mode fails
                     await tv.send_key("KEY_POWER")
                 await asyncio.sleep(5) # Give TV time to wake up
+
+            # Handle stdin commands first (rotate-now, load_image, set_art_mode, etc.)
+            for command in commands_to_handle:
+                action = command.get('action')
+                if action == 'load_image':
+                    filename = command.get('filename')
+                    if not filename:
+                        logging.warning('load_image command missing filename')
+                    else:
+                        try:
+                            with open(filename, "rb") as f: image_data = f.read()
+                            logging.info("Resizing and cropping image (stdin)...")
+                            utils = Utils(None, None)
+                            resized_image_data = utils.resize_and_crop_image(image_data, format_hint='jpg')
+                            await asyncio.sleep(0.5)
+                            matte_var = f"{args.matte}_{args.matte_color}" if args.matte != 'none' else 'none'
+                            matte_arg = None if matte_var == 'none' else matte_var
+                            image_bytes = resized_image_data.getvalue()
+                            logging.info("Prepared JPEG payload bytes: %d (matte=%s)", len(image_bytes), matte_arg or 'omitted')
+                            try:
+                                content_id = await asyncio.wait_for(
+                                    tv.upload(image_bytes, file_type='JPEG', matte=matte_arg), timeout=20
+                                )
+                            except Exception as e:
+                                logging.warning("Upload attempt 1 failed (%s); retrying after short backoff", e)
+                                await asyncio.sleep(2)
+                                content_id = await asyncio.wait_for(
+                                    tv.upload(image_bytes, file_type='JPEG', matte=matte_arg), timeout=20
+                                )
+                            await tv.select_image(content_id, show=True)
+                            if str(args.filter).lower() != 'none':
+                                try:
+                                    await tv.set_photo_filter(content_id, args.filter)
+                                except Exception as e:
+                                    logging.warning("Failed to set photo filter '%s': %s", args.filter, e)
+                            logging.info("stdin load_image complete: %s", content_id)
+                        except Exception as e:
+                            logging.warning('stdin load_image failed: %s', e)
+                elif action == 'set_art_mode':
+                    on = command.get('on')
+                    try:
+                        await tv.set_artmode(bool(on))
+                        logging.info('stdin set_art_mode: %s', bool(on))
+                    except Exception as e:
+                        logging.warning('stdin set_art_mode failed: %s', e)
+                else:
+                    logging.warning('Unknown stdin command: %s', action)
 
             # 2.5. Show-only path: assert current artwork is shown and skip upload
             if args.show_only:
@@ -202,8 +282,13 @@ async def main():
         finally:
             if tv:
                 await tv.close()
-            logging.info(f"Sleeping for {args.rotation_interval} minutes...")
-            await asyncio.sleep(interval_seconds)
+            logging.info(f"Sleeping for {args.rotation_interval} minutes (or until a command arrives)...")
+            try:
+                cmd = await asyncio.wait_for(command_queue.get(), timeout=interval_seconds)
+                # schedule command for next cycle
+                pending_cmds.append(cmd)
+            except asyncio.TimeoutError:
+                pass
 
 if __name__ == "__main__":
     try:

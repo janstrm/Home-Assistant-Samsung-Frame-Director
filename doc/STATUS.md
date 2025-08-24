@@ -62,18 +62,23 @@ This add-on runs as a persistent service to dynamically manage the artwork on a 
 
 #### **Phase 4: On-Demand Generation & Dashboard Control**
 
-* \[ \] Implement the generate\_single\_image service for on-demand generation with a custom prompt.  
-* \[ \] Implement the generate\_batch\_images service for building themed collections in the library.  
-* \[ \] Extend README with detailed examples of dashboard controls (input\_text for Base Prompt, input\_select for modes) and corresponding automations.  
-* \[ \] Add simple safeguards: minimum interval and cooldowns to prevent accidental rapid generation and control costs.
+* [ ] Implement stdin/dashboard control API (no custom integration required): `rotate_now`, `pause_rotation`, `resume_rotation`, `set_rotation_interval {minutes}`, `set_show_only {value}`, `set_art_mode {on}`, `load_image {filename}`.  
+* [ ] Persist lightweight runtime state in `/data/state.json` (paused, interval_override, show_only_override) and honor it in the main loop.  
+* [ ] Provide HA script/button examples in README for start/stop, rotate-now, pause/resume, set interval, toggle show-only, set art mode.  
+* [ ] (Optional) Internal schedule window support (weekday/weekend time windows) in config; otherwise recommend HA automations.  
+* [ ] Implement the generate_single_image service for on-demand generation with a custom prompt.  
+* [ ] Implement the generate_batch_images service for building themed collections in the library.  
+* [ ] Extend README with detailed examples of dashboard controls (input_text for Base Prompt, input_select for modes) and corresponding automations.  
+* [ ] Add simple safeguards: minimum interval and cooldowns to prevent accidental rapid generation and control costs.
 
 ### **Files to be Touched/Created**
 
 * homeassistant-samsung-frame-art/art.py  
 * homeassistant-samsung-frame-art/run.sh  
 * homeassistant-samsung-frame-art/config.yaml  
-* homeassistant-samsung-frame-art/services.yaml **(New File)**  
-* /data/art\_library.db **(New Database File, created at runtime)**
+* homeassistant-samsung-frame-art/services.yaml **(New File, optional)**  
+* /data/art_library.db **(New Database File, created at runtime)**
+* /data/state.json **(New Runtime File)**
 
 ### **Functionality Test Plan**
 

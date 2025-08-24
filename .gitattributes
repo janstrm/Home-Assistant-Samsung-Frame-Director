@@ -1,0 +1,7 @@
+# Enforce Unix (LF) line endings for shell scripts to avoid runtime issues in containers
+*.sh text eol=lf
+
+# Optional: keep Dockerfile and YAML normalized
+Dockerfile text eol=lf
+*.yaml text eol=lf
+

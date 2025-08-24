@@ -5,218 +5,208 @@ import os
 import asyncio
 import logging
 import argparse
+from typing import List
 from utils.utils import Utils
 
-
 sys.path.append('../')
-
 from samsungtvws.async_art import SamsungTVAsyncArt
 from samsungtvws import exceptions
 
-
-
-logging.basicConfig(level=logging.INFO) #or logging.DEBUG to see messages
-
-def parseargs():
-    # Add command line argument parsing
-    parser = argparse.ArgumentParser(description='Example async art Samsung Frame TV.')
-    parser.add_argument('--ip', action="store", type=str, default=None, help='ip address of TV (default: %(default)s))')
-    parser.add_argument('--filter', action="store", type=str, default="none", help='photo filter to apply (default: %(default)s))')
-    parser.add_argument('--matte', action="store", type=str, default="none", help='matte to apply (default: %(default)s))')
-    parser.add_argument('--matte-color', action="store", type=str, default="black", help='matte color to apply (default: %(default)s))')
-    parser.add_argument('--ai-art', action="store_true", help='Enable AI Art generation')
-    parser.add_argument('--prompt', action="store", type=str, default="", help='Prompt for AI Art generation')
-    parser.add_argument('--api-key', action="store", type=str, default="", help='API Key for AI service')
-    parser.add_argument('--rotation-interval', action="store", type=int, default=15, help='Rotation interval in minutes')
-    parser.add_argument('--show-only', action="store_true", help='Only ensure Art Mode is showing the current image')
-    parser.add_argument('--debug', action="store_true", help='Enable debug logging')
-    return parser.parse_args()
-    
-
-
-
-# Set the path to the folder containing the images
+# --- Configuration ---
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 folder_path = '/media/frame'
-
 uploaded_json_path = '/data/uploaded.json'
+token_file_path = "/data/token_frame.json"
 
+# --- Argument Parsing ---
+def parseargs():
+    parser = argparse.ArgumentParser(description='Samsung Frame TV Art Director.')
+    parser.add_argument('--ip', required=True, type=str, help='IP address of TV')
+    parser.add_argument('--rotation-interval', type=int, default=15, help='Rotation interval in minutes')
+    parser.add_argument('--matte', type=str, default="none", help='Matte to apply')
+    parser.add_argument('--matte-color', type=str, default="black", help='Matte color')
+    parser.add_argument('--filter', type=str, default="none", help='Photo filter')
+    parser.add_argument('--debug', action="store_true", help='Enable debug logging')
+    parser.add_argument('--power-state-check', action="store_true", help='Only run if the TV is in Art Mode or Standby')
+    parser.add_argument('--turn-on-art-mode', action="store_true", help='Turn on Art Mode if the TV is in Standby')
+    parser.add_argument('--show-only', action="store_true", help='Only ensure Art Mode is showing the current image')
+    return parser.parse_args()
 
-# Load the list of last 5 uploaded pictures
-if os.path.exists(uploaded_json_path):
-    with open(uploaded_json_path, 'r') as file:
-        uploaded_photos = json.load(file)
-else:
-    uploaded_photos = []
-
-# Selection now happens inside the service loop
-
-
-
-async def stdin_listener(queue: asyncio.Queue):
-    loop = asyncio.get_event_loop()
-    reader = asyncio.StreamReader()
-    protocol = asyncio.StreamReaderProtocol(reader)
-    await loop.connect_read_pipe(lambda: protocol, sys.stdin)
-    while True:
-        line = await reader.readline()
-        if not line:
-            await asyncio.sleep(0.1)
-            continue
-        try:
-            message = json.loads(line.decode().strip())
-            await queue.put(message)
-        except Exception:
-            logging.warning('Received invalid JSON on stdin: {}'.format(line))
-
-
-async def handle_command(tv, command: dict):
-    action = command.get('action')
-    if action == 'load_image':
-        filename = command.get('filename')
-        if not filename:
-            logging.warning('load_image command missing filename')
-            return
-        await process_and_show_image(tv, filename)
-    else:
-        logging.warning('Unknown command: {}'.format(action))
-
-
-async def process_and_show_image(tv, filename: str, matte_var: str = 'none', photo_filter: str = 'none', selected_photo_name: str = None):
+# --- Helper Functions ---
+def load_uploaded_history():
+    if not os.path.exists(uploaded_json_path): return []
     try:
-        with open(filename, "rb") as f:
-            image_data = f.read()
+        with open(uploaded_json_path, 'r') as f: return json.load(f)
+    except (json.JSONDecodeError, IOError):
+        logging.warning("Could not read uploaded.json, starting fresh.")
+        return []
 
-        logging.info('Resizing and cropping the image...')
-        utils = Utils(None, None)
-        file_type = os.path.splitext(filename)[1][1:]
-        resized_image_data = utils.resize_and_crop_image(image_data, format_hint=file_type)
+def save_uploaded_history(history: List[str]):
+    try:
+        with open(uploaded_json_path, 'w') as f: json.dump(history, f)
+    except IOError:
+        logging.error("Could not write to uploaded.json.")
 
-        content_id = await tv.upload(resized_image_data.getvalue(), file_type=file_type, matte=matte_var)
-        logging.info('uploaded {} to tv as {}'.format(filename, content_id))
-        await tv.set_photo_filter(content_id, photo_filter)
-        await tv.select_image(content_id, show=False)
-        logging.info('set artwork to {}'.format(content_id))
-        return content_id
-    except FileNotFoundError:
-        logging.error('Image file not found at {}. Skipping.'.format(filename))
-    except Exception as e:
-        logging.error('An error occurred during image processing or upload: {}'.format(e))
-    return None
-
-
+# --- Main Logic ---
 async def main():
     args = parseargs()
-    logging.getLogger().setLevel(logging.DEBUG if args.debug else logging.INFO)
+    if args.debug:
+        logging.getLogger().setLevel(logging.DEBUG)
 
+    logging.info(f"Add-on started. Rotating every {args.rotation_interval} minutes.")
+    interval_seconds = max(60, args.rotation_interval * 60)
 
-    matte = args.matte
-    matte_color = args.matte_color
+    while True:
+        logging.info("--- Starting new rotation cycle ---")
+        tv = None
+        try:
+            # 1. Create the TV object.
+            tv = SamsungTVAsyncArt(
+                host=args.ip,
+                port=8002,
+                token_file=token_file_path,
+                name="HomeAssistant-Frame-Director"
+            )
 
-    # Set the matte and matte color
-
-    if matte != 'none':
-        matte_var = f"{matte}_{matte_color}"
-    else:
-        matte_var = matte
-
-
-
-    tv = None
-    command_queue: asyncio.Queue = asyncio.Queue()
-    listener_task = asyncio.create_task(stdin_listener(command_queue))
-    interval_seconds = max(1, int(args.rotation_interval) * 60)
-
-    try:
-        tv = SamsungTVAsyncArt(host=args.ip, port=8002)
-        await tv.start_listening()
-
-        supported = await tv.supported()
-        if not supported:
-            logging.info('This TV is not supported')
-        else:
-            logging.info('This TV is supported')
-
-        while True:
-            # Process any pending stdin commands first
+            # 2. Best-effort: verify Art Mode support
             try:
-                while True:
-                    cmd = command_queue.get_nowait()
-                    await handle_command(tv, cmd)
-            except asyncio.QueueEmpty:
-                pass
+                supported = await asyncio.wait_for(tv.supported(), timeout=5)
+            except Exception:
+                supported = True
+            if not supported:
+                logging.info("Art Mode not supported on this TV; skipping cycle.")
+                await asyncio.sleep(interval_seconds)
+                continue
 
+            # 3. Check TV State (Power & Art Mode)
+            power_on = await asyncio.wait_for(tv.on(), timeout=10)
             try:
-                # Ensure TV is reachable and get current state
-                tv_on = await tv.on()
-                logging.info('tv is on: {}'.format(tv_on))
-                art_mode = tv.art_mode
-                logging.info('art mode is on: {}'.format(art_mode))
+                art_mode_status = await asyncio.wait_for(tv.get_artmode(), timeout=5)
+            except Exception:
+                art_mode_status = "unknown"
+                logging.warning("Art mode status unavailable (timeout/err); proceeding")
+            logging.info(f"TV Power On: {power_on}, Art Mode: {art_mode_status}")
 
-                info = await tv.get_current()
-                current_content_id = info.get('content_id') if info else None
+            is_in_art_or_standby = (not power_on) or (art_mode_status == "on")
 
-                if args.show_only:
+            if args.power_state_check and not is_in_art_or_standby:
+                logging.info("TV is actively in use (e.g., watching a movie). Skipping rotation.")
+                await asyncio.sleep(interval_seconds)
+                continue
+
+            if args.turn_on_art_mode and not power_on:
+                logging.info("TV is in Standby. Sending command to activate Art Mode...")
+                try:
+                    await tv.set_artmode(True)
+                except Exception:
+                    # Fallback to power toggle if direct Art Mode fails
+                    await tv.send_key("KEY_POWER")
+                await asyncio.sleep(5) # Give TV time to wake up
+
+            # 2.5. Show-only path: assert current artwork is shown and skip upload
+            if args.show_only:
+                try:
+                    info = await asyncio.wait_for(tv.get_current(), timeout=5)
+                    current_content_id = info.get('content_id') if info else None
                     if current_content_id:
                         await tv.select_image(current_content_id, show=True)
-                        logging.info('ensured current artwork is showing: {}'.format(current_content_id))
-                else:
-                    if args.ai_art:
-                        logging.info('AI Art mode enabled; generation not implemented yet')
+                        logging.info(f"Ensured current artwork is showing: {current_content_id}")
                     else:
-                        photos = [
-                            f for f in os.listdir(folder_path)
-                            if os.path.isfile(os.path.join(folder_path, f)) and f.lower().endswith((".png", ".jpg"))
-                        ]
-                        if not photos:
-                            logging.info('No PNG or JPG photos found in the folder')
-                        else:
-                            available_files = [f for f in photos if f not in uploaded_photos] if len(photos) > 5 else photos
-                            if not available_files:
-                                available_files = photos
-                            selected_photo = random.choice(available_files)
-                            filename = os.path.join(folder_path, selected_photo)
-                            new_filename = os.path.join(folder_path, os.path.basename(filename).lower())
-                            if filename != new_filename:
-                                try:
-                                    os.rename(filename, new_filename)
-                                    filename = new_filename
-                                except Exception:
-                                    filename = new_filename
-                            logging.info('Selected photo: {}'.format(filename))
+                        logging.info("No current artwork found to show.")
+                except Exception as e:
+                    logging.warning(f"Show-only failed to ensure artwork: {e}")
+                logging.info(f"Show-only complete. Sleeping for {args.rotation_interval} minutes...")
+                await asyncio.sleep(interval_seconds)
+                continue
 
-                            content_id = await process_and_show_image(
-                                tv, filename, matte_var=matte_var, photo_filter=args.filter, selected_photo_name=selected_photo
-                            )
-                            if content_id and current_content_id:
-                                try:
-                                    await tv.delete_list([current_content_id])
-                                    logging.info('deleted from tv: {}'.format([current_content_id]))
-                                except Exception as e:
-                                    logging.warning('Failed to delete previous artwork: {}'.format(e))
-
-                            # Update recent uploads
-                            uploaded_photos.append(selected_photo)
-                            if len(uploaded_photos) > 5:
-                                uploaded_photos.pop(0)
-                            try:
-                                with open(uploaded_json_path, 'w') as file:
-                                    json.dump(uploaded_photos, file)
-                            except Exception as e:
-                                logging.warning('Failed to update uploaded.json: {}'.format(e))
-
-            except exceptions.ResponseError as e:
-                logging.error('Received an error response from the TV: {}'.format(e))
-            except exceptions.ConnectionFailure as e:
-                logging.error('Could not connect to the TV at {}. Error: {}'.format(args.ip, e))
-            except Exception as e:
-                logging.error('Unexpected error in loop: {}'.format(e))
-
-            # Wait for either a command or the interval timeout
+            # 3. Get Current Artwork (best-effort; don't fail cycle)
+            current_content_id = None
             try:
-                cmd = await asyncio.wait_for(command_queue.get(), timeout=interval_seconds)
-                await handle_command(tv, cmd)
-            except asyncio.TimeoutError:
-                pass
+                info = await asyncio.wait_for(tv.get_current(), timeout=5)
+                current_content_id = info.get('content_id') if info else None
+                logging.info(f"Successfully connected. Current artwork ID: {current_content_id}")
+            except Exception as e:
+                logging.warning(f"Failed to get current artwork (skipping deletion this cycle): {e}")
 
+            # 4. Select a New Image
+            uploaded_photos = load_uploaded_history()
+            all_photos = [f for f in os.listdir(folder_path) if f.lower().endswith(('.png', '.jpg'))]
+            
+            if not all_photos:
+                logging.warning(f"No images found in {folder_path}. Skipping rotation.")
+                await asyncio.sleep(interval_seconds)
+                continue
 
-asyncio.run(main())
+            available_photos = [p for p in all_photos if p not in uploaded_photos]
+            if not available_photos:
+                logging.info("All photos have been shown recently. Resetting selection pool.")
+                available_photos = all_photos
+
+            selected_photo_name = random.choice(available_photos)
+            filename = os.path.join(folder_path, selected_photo_name)
+            logging.info(f"Selected new photo: {selected_photo_name}")
+
+            # 5. Process and Upload Image
+            with open(filename, "rb") as f: image_data = f.read()
+            logging.info("Resizing and cropping image...")
+            utils = Utils(None, None)
+            # Force JPEG output to match upload file_type below
+            resized_image_data = utils.resize_and_crop_image(image_data, format_hint='jpg')
+
+            # Small settle before upload to avoid handshake flakiness
+            await asyncio.sleep(0.5)
+
+            matte_var = f"{args.matte}_{args.matte_color}" if args.matte != 'none' else 'none'
+            matte_arg = None if matte_var == 'none' else matte_var
+
+            image_bytes = resized_image_data.getvalue()
+            logging.info("Prepared JPEG payload bytes: %d (matte=%s)", len(image_bytes), matte_arg or 'omitted')
+
+            # Upload as JPEG as per API docs, with timeout and one retry
+            try:
+                new_content_id = await asyncio.wait_for(
+                    tv.upload(image_bytes, file_type='JPEG', matte=matte_arg), timeout=20
+                )
+            except Exception as e:
+                logging.warning("Upload attempt 1 failed (%s); retrying after short backoff", e)
+                await asyncio.sleep(2)
+                new_content_id = await asyncio.wait_for(
+                    tv.upload(image_bytes, file_type='JPEG', matte=matte_arg), timeout=20
+                )
+
+            logging.info(f"Successfully uploaded image as {new_content_id}")
+
+            # 6. Display New Image
+            await tv.select_image(new_content_id, show=True)
+            if str(args.filter).lower() != 'none':
+                try:
+                    await tv.set_photo_filter(new_content_id, args.filter)
+                except Exception as e:
+                    logging.warning(f"Failed to set photo filter '{args.filter}': {e}")
+            logging.info("Set new image as active artwork.")
+
+            # 7. Delete Old Image
+            if current_content_id and current_content_id != new_content_id and not str(current_content_id).startswith('SAM-'):
+                await tv.delete_list([current_content_id])
+                logging.info(f"Deleted old artwork: {current_content_id}")
+
+            # 8. Update History
+            uploaded_photos.append(selected_photo_name)
+            while len(uploaded_photos) > 50: uploaded_photos.pop(0)
+            save_uploaded_history(uploaded_photos)
+            
+            logging.info(f"Rotation cycle complete. Shown: {selected_photo_name} (content_id={new_content_id})")
+
+        except Exception as e:
+            logging.error(f"An unexpected error occurred in the rotation cycle:", exc_info=True)
+        finally:
+            if tv:
+                await tv.close()
+            logging.info(f"Sleeping for {args.rotation_interval} minutes...")
+            await asyncio.sleep(interval_seconds)
+
+if __name__ == "__main__":
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logging.info("Add-on stopped by user.")

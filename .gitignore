@@ -4,3 +4,33 @@ homeassistant-samsung-frame-art/.DS_Store
 .DS_Store
 .DS_Store
 .venv
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.dylib
+*.egg-info/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+
+# Editors/IDE
+.idea/
+.vscode/
+.devcontainer/
+*.code-workspace
+
+# Env
+.env
+.env.*
+.venv/
